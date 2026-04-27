@@ -13,4 +13,4 @@ message = UserMessage(
 )
 
 result = run_assistant_pipeline(message)
-print(f"Response: {result.assistant_response.message}")
+print(f"Log: {result}")

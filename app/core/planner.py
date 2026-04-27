@@ -28,8 +28,14 @@ def create_safety_response_plan(
     safety_result: SafetyResult,
     safety_context: SafetyContext | None,
 ) -> ResponsePlan:
+    if safety_result.recommended_action == "clarify_risk":
+        mode = "clarifying_question"
+    elif safety_result.recommended_action in ["show_crisis_resources", "escalate_to_human", "block_response"]:
+        mode = "crisis_response"
+    else:
+        mode = "emotional_validation"
     return ResponsePlan(
-        mode="crisis_response",
+        mode=mode,
         objective="Provide crisis resources and support",
         key_context_to_use=[],
         constraints=[],
