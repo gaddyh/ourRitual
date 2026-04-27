@@ -1,0 +1,5 @@
+# Add your project dependencies here
+# Example:
+# fastapi>=0.100.0
+pydantic
+# openai>=1.0.0
