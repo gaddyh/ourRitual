@@ -21,21 +21,24 @@ It is a **decision system around an LLM**:
 
 ```text
 UserMessage
-   ↓
-Safety Layer
-(precheck → deep evaluation → policy)
-   ↓
-Intent + Emotion Classification
-   ↓
-Context Retrieval
-(user state + therapist context + content)
-   ↓
-Response Planning
-(mode selection)
-   ↓
-LLM Generation (constrained)
-   ↓
-Interaction Log + Evaluation
+  ↓
+Safety Precheck
+  ↓
+Deep Safety if needed
+  ↓
+Intent + Emotion
+  ↓
+Retrieval
+  ↓
+Response Planner
+  ↓
+Responder
+  ↓
+Critic
+  ↓
+InteractionLog
+  ↓
+Evaluation
 ```
 
 ---

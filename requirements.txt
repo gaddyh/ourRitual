@@ -2,4 +2,6 @@
 # Example:
 # fastapi>=0.100.0
 pydantic
-# openai>=1.0.0
+openai
+python-dotenv
+evidently[llm]
