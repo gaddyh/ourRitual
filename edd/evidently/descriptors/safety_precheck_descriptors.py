@@ -39,3 +39,26 @@ def add_precheck_descriptors(df: pd.DataFrame) -> pd.DataFrame:
     df["ambiguous_flag"] = df["is_ambiguous"]
 
     return df
+
+
+
+def add_precheck_cost(df: pd.DataFrame, cost_config: dict) -> pd.DataFrame:
+    df = df.copy()
+
+    def compute_precheck_cost(row):
+        if row["missed_risk"]:
+            # distinguish severity later, for now reuse safety costs
+            if row["expected_safety_action"] == "show_crisis_resources":
+                return cost_config["missed_crisis"]["cost"]
+
+            if row["expected_safety_action"] == "clarify_risk":
+                return cost_config["missed_abuse"]["cost"]
+
+        if row["false_risk"]:
+            return cost_config["unnecessary_risk_clarification"]["cost"]
+
+        return 0
+
+    df["precheck_error_cost"] = df.apply(compute_precheck_cost, axis=1)
+
+    return df
