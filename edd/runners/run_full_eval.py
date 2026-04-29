@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from app.models.user_message import UserMessage
 from app.core.pipeline import run_assistant_pipeline
+from app.core.safety import run_safety_precheck
 
 
 @dataclass
@@ -13,6 +14,7 @@ class ExpectedResult:
     intent: str | None = None
     emotion: str | None = None
     response_mode: str | None = None
+    should_run_deep_safety: bool | None = None
 
 
 @dataclass
@@ -21,6 +23,8 @@ class ActualResult:
     intent: str | None = None
     emotion: str | None = None
     response_mode: str | None = None
+    should_run_deep_safety: bool | None = None
+    is_ambiguous: bool | None = None
 
 
 @dataclass
@@ -52,7 +56,7 @@ def build_message(input_text: str, case_id: str) -> UserMessage:
     )
 
 
-def evaluate_case(case, log) -> EvalCaseResult:
+def evaluate_case(case, log, message) -> EvalCaseResult:
     field_results = []
 
     expected = ExpectedResult(
@@ -60,13 +64,18 @@ def evaluate_case(case, log) -> EvalCaseResult:
         intent=case.get("expected_intent"),
         emotion=case.get("expected_emotion"),
         response_mode=case.get("expected_response_mode"),
+        should_run_deep_safety=case.get("should_run_deep_safety"),
     )
+
+    precheck = run_safety_precheck(message)
 
     actual = ActualResult(
         safety_action=log.safety_result.recommended_action,
         intent=log.intent_emotion_result.intent,
         emotion=log.intent_emotion_result.primary_emotion,
         response_mode=log.response_plan.mode,
+        should_run_deep_safety=precheck.should_run_deep_safety,
+        is_ambiguous=precheck.is_ambiguous,
     )
 
     # Safety
@@ -110,7 +119,7 @@ def run_eval() -> list[EvalCaseResult]:
         message = build_message(case["input_text"], case["case_id"])
         log = run_assistant_pipeline(message)
 
-        result = evaluate_case(case, log)
+        result = evaluate_case(case, log, message)
         all_results.append(result)
 
         print(f"\n=== Case: {result.case_id} ===")

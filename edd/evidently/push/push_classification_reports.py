@@ -1,5 +1,3 @@
-# evals/push_classification_reports.py
-
 import os
 import pandas as pd
 
@@ -7,10 +5,12 @@ from evidently import Dataset, DataDefinition, Report, MulticlassClassification
 from evidently.presets import ClassificationPreset
 from evidently.ui.workspace import CloudWorkspace
 
-from evals.run_eval import run_eval  # adapt to your function
+from edd.runners.run_full_eval import run_eval  # must return structured results
 from dotenv import load_dotenv
 
 load_dotenv(".venv/.env")
+
+# ---- CONFIG ----
 
 CLASSIFICATION_TASKS = [
     {
@@ -36,6 +36,8 @@ CLASSIFICATION_TASKS = [
 ]
 
 
+# ---- BUILD DATA ----
+
 def build_eval_dataframe() -> pd.DataFrame:
     results = run_eval()
 
@@ -57,12 +59,26 @@ def build_eval_dataframe() -> pd.DataFrame:
 
             "expected_response_mode": r.expected.response_mode,
             "actual_response_mode": r.actual.response_mode,
+
+            "expected_should_run_deep_safety": r.expected.should_run_deep_safety,
+            "should_run_deep_safety": r.actual.should_run_deep_safety,
+            "is_ambiguous": r.actual.is_ambiguous,
         })
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+
+    # enforce string type (important for Evidently multiclass)
+    bool_cols = {"should_run_deep_safety", "expected_should_run_deep_safety", "is_ambiguous"}
+    for col in df.columns:
+        if col != "user_input" and col not in bool_cols:
+            df[col] = df[col].astype(str)
+
+    return df
 
 
-def push_one_classification_report(
+# ---- PUSH ONE REPORT ----
+
+def push_one_report(
     ws: CloudWorkspace,
     project_id: str,
     df: pd.DataFrame,
@@ -71,21 +87,13 @@ def push_one_classification_report(
     prediction_col: str,
 ):
     report_df = df[
-        [
-            "case_id",
-            "user_input",
-            target_col,
-            prediction_col,
-        ]
+        ["case_id", "user_input", target_col, prediction_col]
     ].rename(
         columns={
             target_col: "target",
             prediction_col: "prediction",
         }
     )
-
-    report_df["target"] = report_df["target"].astype(str)
-    report_df["prediction"] = report_df["prediction"].astype(str)
 
     dataset = Dataset.from_pandas(
         report_df,
@@ -102,9 +110,15 @@ def push_one_classification_report(
         ),
     )
 
-    report = Report([
-        ClassificationPreset(),
-    ])
+    # 🔥 TAGS = key for dashboard separation
+    report = Report(
+        [ClassificationPreset()],
+        tags=[
+            "relationship_ai",
+            "eval_v1",
+            f"head:{task_name}",
+        ],
+    )
 
     run = report.run(dataset)
 
@@ -112,11 +126,13 @@ def push_one_classification_report(
         project_id,
         run,
         include_data=True,
-        name=f"{task_name} classification eval",
+        name=f"{task_name}_eval",
     )
 
-    print(f"Pushed {task_name} classification report")
+    print(f"✅ pushed {task_name}")
 
+
+# ---- MAIN ----
 
 def main():
     ws = CloudWorkspace(
@@ -125,10 +141,11 @@ def main():
     )
 
     project_id = os.environ["EVIDENTLY_PROJECT_ID"]
+
     df = build_eval_dataframe()
 
     for task in CLASSIFICATION_TASKS:
-        push_one_classification_report(
+        push_one_report(
             ws=ws,
             project_id=project_id,
             df=df,
@@ -136,6 +153,12 @@ def main():
             target_col=task["target"],
             prediction_col=task["prediction"],
         )
+
+    print("\n🎯 Done. Use tags in dashboard:")
+    print("  head:safety_action")
+    print("  head:intent")
+    print("  head:emotion")
+    print("  head:response_mode")
 
 
 if __name__ == "__main__":

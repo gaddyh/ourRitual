@@ -1,4 +1,4 @@
-# evals/push_to_evidently.py
+# edd/evidently/push/push_descriptor_reports.py
 
 import os
 import pandas as pd
@@ -7,7 +7,7 @@ from evidently import Dataset, DataDefinition, Report
 from evidently.presets import TextEvals
 from evidently.ui.workspace import CloudWorkspace
 
-from evals.run_eval import run_eval  # adapt if your function name differs
+from edd.runners.run_full_eval import run_eval
 from dotenv import load_dotenv
 
 load_dotenv(".venv/.env")
